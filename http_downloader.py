@@ -18,16 +18,13 @@ def pegarEndpoint(url: str) -> str:
     spltAr = url.split("://")
     i = (0, 1)[len(spltAr) > 1]
     spltAr = spltAr[i].split('/', 1)
-    if(len(spltAr) <= 1):
-        return "/"
-    else:
-        return ("/" + spltAr[1].lower())
+    if(len(spltAr) <= 1): return "/"
+    else: return ("/" + spltAr[1].lower())
 
 
 parser = argparse.ArgumentParser(description='Salva o corpo da resposta http')
 parser.add_argument('url', type=str, help='o url que vai ser salvo')
-parser.add_argument('--log', action='store_const',
-                    const=True, help='logar requests')
+parser.add_argument('--log', action='store_const',const=True, help='logar requests')
 
 args = parser.parse_args()
 url = str(args.url)
@@ -35,8 +32,7 @@ log = bool(args.log)
 
 
 def baixar(url):
-    if log and not str(args.url) == url:
-        print("\r\n")
+    if log and not str(args.url) == url: print("\r\n")
 
     print(f"Baixando: {url}")
 
@@ -60,25 +56,22 @@ def baixar(url):
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     if usarSsl:
-        ctx = ssl.create_default_context()
-        client_socket = ctx.wrap_socket(
-            client_socket, server_hostname=hostname)
+        client_socket = ssl.create_default_context\
+          .wrap_socket(client_socket, server_hostname=hostname)
 
     client_socket.connect(server_address)
-
     client_socket.send(request_header.encode())
 
     response = b''
     while True:
         recv = client_socket.recv(4096)
-        if not recv:
-            break
+        if not recv: break
         response += recv
 
     client_socket.close()
 
     partes = response.split(b"\r\n\r\n", 1)
-    headers = partes[0].decode().split("\r\n")
+    headers = parse_headers(partes[0].decode().split("\r\n"))
     status_code = int(headers[0].split(" ")[1])
     body = partes[1]
     if log:
@@ -88,24 +81,18 @@ def baixar(url):
 
     match status_code:
         case 301:
-            alvo = (
-                [s for s in headers if "location:" in s]
-                [0].split('location:')
-                [1].strip()
-            )
+            alvo = headers.get("location")
             print(f"Redirecionando: {alvo}")
             baixar(alvo)
         case _ if status_code >= 200 and status_code < 300:
             site_folder = hostname.replace(".", "_")
             file_name = endpoint.split("/")[-1]
             file_name = file_name if "." in file_name else "index.html"
-            path_to_save = Path(
-                f"out/{site_folder}" + endpoint.removesuffix(file_name))
+            path_to_save = Path(f"out/{site_folder}" + endpoint.removesuffix(file_name))
             path_to_save.mkdir(parents=True, exist_ok=True)
             file_path = os.getcwd() + "/" + str(path_to_save) + "/" + file_name
-            if log:
-                print("salvando em:" + file_path)
-            if "content-type: text/html" in partes[0].decode().lower():
+            if log: print("salvando em:" + file_path)
+            if headers.get("content-type") == "text/html":
               baixar_imagens(body.decode(),hostname)
             salvar(body, file_path)
 
@@ -131,6 +118,16 @@ def salvar(data: bytes, path: str):
     file = open(path, 'wb')
     file.write(data)
     file.close()
+
+def parse_headers(h_txt: str):
+  linha_1, *linhas = h_txt.split("\n")
+  metodo, endpoint, protocolo = linha_1.split(" ")
+  h_dict = {"method": metodo, "endpoint": endpoint, "protocol": protocolo}
+  for linha in linhas:
+    chave,valor =  linha.split(":",1)
+    h_dict[chave.lower()] = valor.lower()
+  return h_dict
+
 
 
 baixar(url)
