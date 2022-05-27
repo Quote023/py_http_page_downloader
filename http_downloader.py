@@ -6,22 +6,6 @@ import ssl
 from pathlib import Path
 # Funções úteis
 
-
-def pegarHostname(url: str) -> str:
-    spltAr = url.split("://")
-    i = (0, 1)[len(spltAr) > 1]
-    # remover query params, endpoint etc
-    return spltAr[i].split("?")[0].split('/')[0].split(':')[0].lower()
-
-
-def pegarEndpoint(url: str) -> str:
-    spltAr = url.split("://")
-    i = (0, 1)[len(spltAr) > 1]
-    spltAr = spltAr[i].split('/', 1)
-    if(len(spltAr) <= 1): return "/"
-    else: return ("/" + spltAr[1].lower())
-
-
 parser = argparse.ArgumentParser(description='Salva o corpo da resposta http')
 parser.add_argument('url', type=str, help='o url que vai ser salvo')
 parser.add_argument('--log', action='store_const',const=True, help='logar requests')
@@ -39,8 +23,8 @@ def baixar(url):
     usarSsl = url.startswith("https")
     porta = 443 if usarSsl else 80
 
-    hostname = pegarHostname(url)
-    endpoint = pegarEndpoint(url)
+    hostname = pegar_hostname(url)
+    endpoint = pegar_endpoint(url)
 
     server_address = (hostname.encode(), porta)
     request_header = (f'GET {endpoint} HTTP/1.0\r\n'
@@ -96,6 +80,20 @@ def baixar(url):
               baixar_imagens(body.decode(),hostname)
             salvar(body, file_path)
 
+
+def pegar_hostname(url: str) -> str:
+    spltAr = url.split("://")
+    i = (0, 1)[len(spltAr) > 1]
+    # remover query params, endpoint etc
+    return spltAr[i].split("?")[0].split('/')[0].split(':')[0].lower()
+
+
+def pegar_endpoint(url: str) -> str:
+    spltAr = url.split("://")
+    i = (0, 1)[len(spltAr) > 1]
+    spltAr = spltAr[i].split('/', 1)
+    if(len(spltAr) <= 1): return "/"
+    else: return ("/" + spltAr[1].lower())
 
 def baixar_imagens(html: str,hostname: str):
     rgx_imgs = re.compile('<img[^>]+src=(?:\"|\')(.[^">]+?)(?=\"|\')')
