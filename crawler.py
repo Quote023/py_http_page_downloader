@@ -12,7 +12,6 @@ def baixar(url: str,log: bool,rel: bool) -> list[str]:
   usar_ssl = eh_endereco_seguro(url)
   hostname,porta = pegar_info_conexao(url)
   endpoint = pegar_endpoint(url)
-
   server_address = (hostname.encode(), porta)
   request_header = (f'GET {endpoint} HTTP/1.0\r\nHost: {hostname}\r\nAccept: */*\r\n\r\n')
     
@@ -25,7 +24,6 @@ def baixar(url: str,log: bool,rel: bool) -> list[str]:
     print(request_header.strip())
 
   clt_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  
   if usar_ssl: clt_sock = upgrade_ssl(clt_sock,hostname)
 
   clt_sock.connect(server_address)
@@ -55,21 +53,21 @@ def baixar(url: str,log: bool,rel: bool) -> list[str]:
     case status if status >= 200 and status < 300:
         file_name = pegar_nome_arquivo(endpoint)
         subpasta = endpoint.removesuffix(file_name).strip("/")
-        path_to_save = os.path.join(os.getcwd(),"out",hostname,subpasta)
+        path_to_save = os.path.join(os.getcwd(),"out",hostname,subpasta).removesuffix("/")
         Path(path_to_save).mkdir(parents=True, exist_ok=True)
-        file_path = path_to_save + file_name
+        file_path = path_to_save + "/" + file_name.strip("/")
         file_data = body
         if rel: file_data = re.sub(fr"https?:\/\/(?:www.)?{hostname}".encode(),b".",body)
         salvar_arquivo(file_data, file_path)
         if "text/html" in headers.get("content-type"):
-          return [u for u in pegar_arquivos(body.decode(),hostname) if u]
+          return [u for u in pegar_arquivos(body.decode(),url) if u]
         else: return []
     case _:
         return []
 
 
 def pegar_arquivos(html: str,hostname: str):
-    regex = re.compile(r'(?:(?:href=)|(?:src=))(?:\"|\')(.[^">]+?)(?=\"|\')')
+    regex = re.compile(r'(?:(?:href=)|(?:src=)|(?:background=))(?:\"|\')(.[^">]+?)(?=\"|\')')
     imgs = regex.findall(html)
     return {add_hostname(hostname,src) for src in imgs if not src.startswith("data:")}
 

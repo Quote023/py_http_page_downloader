@@ -1,3 +1,4 @@
+import os
 from typing import Dict
 
 def eh_endereco_seguro(url: str):
@@ -23,23 +24,34 @@ def pegar_endpoint(url: str) -> str:
     else: return ("/" + spltAr[1].lower())
 
 def pegar_nome_arquivo(path: str):
-  file_name = path.split("?")[0].split("/")[-1]
+  file_name = path.strip("/").split("?")[0].split("/")[-1]
   return file_name if "." in file_name else "index.html"
 
 def add_hostname(hostname: str, path: str):
-  return path if "http" in path else f"{hostname}/{path.strip('./')}"
+  hostname = hostname.split("?")[0].strip("/")
+  path = path.strip('./')
+  if(hostname.endswith(".html")):
+    hostname = os.path.dirname(hostname)
+    
+  if(".." in path): #voltar 1 pasta
+    hostname = hostname[:hostname.rfind("/")]
+
+  return path if "http" in path else f"{hostname}/{path}"
 
 
 def salvar_arquivo(data: bytes, path: str):
   file = open(path, 'wb')
-  # file = open("./result.txt", 'ab')
   file.write(data)
   file.close()
 
 def parse_response_headers(h_txt: str):
   linha_1, *linhas = h_txt.split("\n")
   protocolo, status, mensagem = linha_1.split(" ",2)
-  h_dict: Dict[str, str | float | int] = {"status_code": int(status), "message": mensagem, "protocol": protocolo}
+  h_dict: Dict[str, str | float | int] = {
+    "status_code": int(status), 
+    "message": mensagem, 
+    "protocol": protocolo
+  }
   for linha in linhas:
     chave,valor =  linha.lower().strip("\r\n").split(":",1)
     h_dict[chave] = valor.strip() if not valor.isnumeric()\
