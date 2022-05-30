@@ -1,10 +1,10 @@
 import argparse
+import logging
 import threading
 from crawler import baixar
 from utils import pegar_info_conexao
 
 cache = set()
-
 
 parser = argparse.ArgumentParser(description='Salva o corpo da resposta http')
 parser.add_argument('url', type=str, help='o url que vai ser salvo')
@@ -31,5 +31,7 @@ def main(url: str):
       main(u)
 
 
-# open("./result.txt", 'wb').close()
+Log_Format = "%(levelname)s - %(message)s"
+logging.basicConfig(filename = "logfile.log",filemode = "w", format = Log_Format,  level = logging.DEBUG)
+
 main(str(args.url))

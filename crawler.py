@@ -1,4 +1,4 @@
-from asyncio.log import logger
+import logging
 import os
 from pathlib import Path
 import re
@@ -8,6 +8,9 @@ import ssl
 from utils import *
 
 def baixar(url: str,log: bool,rel: bool) -> list[str]:
+  logger = logging.getLogger()
+  url = url.replace(" ","")
+  if not url.startswith("http"): url = "http://" + url
   print(f"Baixando: {url}")
   usar_ssl = eh_endereco_seguro(url)
   hostname,porta = pegar_info_conexao(url)
@@ -25,17 +28,21 @@ def baixar(url: str,log: bool,rel: bool) -> list[str]:
 
   clt_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
   if usar_ssl: clt_sock = upgrade_ssl(clt_sock,hostname)
+  clt_sock.settimeout(10.0)
+  try:
+    clt_sock.connect(server_address)
+    clt_sock.send(request_header.encode())
 
-  clt_sock.connect(server_address)
-  clt_sock.send(request_header.encode())
+    response = b''
+    while True:
+      recv = clt_sock.recv(1024)
+      if not recv: break
+      response += recv
 
-  response = b''
-  while True:
-    recv = clt_sock.recv(1024)
-    if not recv: break
-    response += recv
-
-  clt_sock.close()
+    clt_sock.close()
+  except Exception as e:
+    logger.error(f"Falha ao baixar {url} =>> {str(e)}")
+    return []
 
   partes = response.split(b"\r\n\r\n", 1)
   headers = parse_response_headers(partes[0].decode())
@@ -51,13 +58,17 @@ def baixar(url: str,log: bool,rel: bool) -> list[str]:
         print(f"Redirecionando: {alvo}")
         return [ str(alvo) ]
     case status if status >= 200 and status < 300:
-        file_name = pegar_nome_arquivo(endpoint)
-        subpasta = endpoint.removesuffix(file_name).strip("/")
+        endpoint_base = endpoint.split("?")[0]
+        file_name = pegar_nome_arquivo(endpoint_base)
+        subpasta = endpoint_base.removesuffix(file_name).strip("/")
         path_to_save = os.path.join(os.getcwd(),"out",hostname,subpasta).removesuffix("/")
         Path(path_to_save).mkdir(parents=True, exist_ok=True)
         file_path = path_to_save + "/" + file_name.strip("/")
         file_data = body
+        
         if rel: file_data = re.sub(fr"https?:\/\/(?:www.)?{hostname}".encode(),b".",body)
+        logger.debug("salvo com sucesso: " + path_to_save[path_to_save.find("out"):] + " >=> " + file_name)
+        
         salvar_arquivo(file_data, file_path)
         if "text/html" in headers.get("content-type"):
           return [u for u in pegar_arquivos(body.decode(),url) if u]
