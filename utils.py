@@ -8,7 +8,7 @@ def pegar_info_conexao(url: str) -> tuple[str, int]:
     spltAr = url.split("://")
     i = (0, 1)[len(spltAr) > 1]
     host_port = spltAr[i].split("?")[0].split('/')[0].lower().split(':')
-    if len(host_port) < 2: 
+    if len(host_port) < 2 or not host_port[1].isnumeric(): 
       return (host_port[0],porta_padrao(url)) 
     else: 
       return (host_port[0],int(host_port[1])) 
@@ -20,7 +20,7 @@ def pegar_endpoint(url: str) -> str:
     spltAr = url.split("://")
     i = (0, 1)[len(spltAr) > 1]
     spltAr = spltAr[i].split('/', 1)
-    if(len(spltAr) <= 1): return "/"
+    if len(spltAr) <= 1: return "/"
     else: return ("/" + spltAr[1].lower())
 
 def pegar_nome_arquivo(path: str):
@@ -30,10 +30,11 @@ def pegar_nome_arquivo(path: str):
 def add_hostname(hostname: str, path: str):
   hostname = hostname.split("?")[0].strip("/")
   path = path.strip('./')
-  if(hostname.endswith(".html")):
+
+  if hostname.endswith((".html",".php",".jsp",".css",".js",".xml",".json")):
     hostname = os.path.dirname(hostname)
     
-  if(".." in path): #voltar 1 pasta
+  if ".." in path: #voltar 1 pasta
     hostname = hostname[:hostname.rfind("/")]
 
   return path if "http" in path else f"{hostname}/{path}"

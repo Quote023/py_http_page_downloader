@@ -11,6 +11,10 @@ def baixar(url: str,log: bool,rel: bool) -> list[str]:
   logger = logging.getLogger()
   url = url.replace(" ","")
   if not url.startswith("http"): url = "http://" + url
+  
+  if "#" in url.split("/")[-1].split("?")[0]:
+    return {}
+  
   print(f"Baixando: {url}")
   usar_ssl = eh_endereco_seguro(url)
   hostname,porta = pegar_info_conexao(url)
@@ -42,7 +46,7 @@ def baixar(url: str,log: bool,rel: bool) -> list[str]:
     clt_sock.close()
   except Exception as e:
     logger.error(f"Falha ao baixar {url} =>> {str(e)}")
-    return []
+    return {}
 
   partes = response.split(b"\r\n\r\n", 1)
   headers = parse_response_headers(partes[0].decode())
@@ -56,7 +60,7 @@ def baixar(url: str,log: bool,rel: bool) -> list[str]:
     case 300 | 301 | 302 | 303 | 307 | 308:
         alvo = headers.get("location")
         print(f"Redirecionando: {alvo}")
-        return [ str(alvo) ]
+        return { str(alvo) }
     case status if status >= 200 and status < 300:
         endpoint_base = endpoint.split("?")[0]
         file_name = pegar_nome_arquivo(endpoint_base)
@@ -66,21 +70,30 @@ def baixar(url: str,log: bool,rel: bool) -> list[str]:
         file_path = path_to_save + "/" + file_name.strip("/")
         file_data = body
         
-        if rel: file_data = re.sub(fr"https?:\/\/(?:www.)?{hostname}".encode(),b".",body)
+        if rel: 
+          rel_path = b"." if subpasta.count("/") <= 0 else b".."*subpasta.count("/")
+          file_data = re.sub(fr"https?:\/\/(?:www.)?{hostname}".encode(),rel_path,body)
         logger.debug("salvo com sucesso: " + path_to_save[path_to_save.find("out"):] + " >=> " + file_name)
         
         salvar_arquivo(file_data, file_path)
         if "text/html" in headers.get("content-type"):
-          return [u for u in pegar_arquivos(body.decode(),url) if u]
-        else: return []
+          return {u for u in pegar_arquivos(body.decode(),url) if u}
+        elif "text/css" in headers.get("content-type"):
+          return {u for u in pegar_arquivos_css(body.decode(),url) if u}
+        else: return {}
     case _:
-        return []
+        return {}
 
 
 def pegar_arquivos(html: str,hostname: str):
     regex = re.compile(r'(?:(?:href=)|(?:src=)|(?:background=))(?:\"|\')(.[^">]+?)(?=\"|\')')
     imgs = regex.findall(html)
     return {add_hostname(hostname,src) for src in imgs if not src.startswith("data:")}
+
+def pegar_arquivos_css(css: str,hostname: str):
+    regex = re.compile(r'(?:url\()(.[^">]+?)(?=\))')
+    imgs: list[str] = regex.findall(css)
+    return {add_hostname(hostname,src.strip("'\"")) for src in imgs if not src.startswith("data:")}
 
 
 def upgrade_ssl(sock: socket.socket, hostname: str):
