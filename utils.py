@@ -32,7 +32,7 @@ def add_hostname(hostname: str, path: str):
   path = path.strip('./')
 
   if hostname.endswith((".html",".php",".jsp",".css",".js",".xml",".json")):
-    hostname = os.path.dirname(hostname)
+    hostname = os.path.dirname(hostname) #remove arquivos pra não salvar coisas tipo "pagina2/index.html/imgs/foto.jpg" e sim "pagina2/imgs/foto.jpg"
     
   if ".." in path: #voltar 1 pasta
     hostname = hostname[:hostname.rfind("/")]
